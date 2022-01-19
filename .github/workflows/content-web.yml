@@ -2,24 +2,22 @@ name: content-web
 
 # This workflow is triggered on push to the 'content-web' directory of the  main branch of the repository
 on:
-  push:
-    branches:
-    - main
-    paths:
-    - 'content-web/**'
-    # - web.deployment.yml
-    # - web.service.yml
+   push:
+      branches:
+         - main
+      paths:
+         - 'content-web/**'
 
-  # Configure workflow to also support triggering manually
-  workflow_dispatch:
+   # Configure workflow to also support triggering manually
+   workflow_dispatch:
 
 # Environment variables are defined so that they can be used throughout the job definitions.
 env:
   imageRepository: 'content-web'
-  resourceGroupName: 'fabmedical-[SUFFIX]'
-  clusterName: 'fabmedical-[SUFFIX]'
-  containerRegistryName: 'fabmedical[SUFFIX]'
-  containerRegistry: 'fabmedical[SUFFIX].azurecr.io'
+  resourceGroupName: 'fabmedical-523109'
+  clusterName: 'fabmedical-523109'
+  containerRegistryName: 'acr523109'
+  containerRegistry: 'acr523109.azurecr.io'
   dockerfilePath: './content-web'
   tag: '${{ github.run_id  }}'
 
@@ -52,12 +50,17 @@ jobs:
         tags: |
           ${{ env.containerRegistry }}/${{ env.imageRepository }}:${{ env.tag }}
           ${{ env.containerRegistry }}/${{ env.imageRepository }}:latest
-
-    - uses: Azure/aks-set-context@v1
+    
+    - name: Set Kubernetes Context
+      uses: azure/aks-set-context@v1
       with:
-        creds: '${{ secrets.AZURE_CREDENTIALS }}'
-        cluster-name: '${{ env.clusterName }}'
+        creds: '${{ secrets.AZURE_CREDENTIALS }}' # Azure credentials
         resource-group: '${{ env.resourceGroupName }}'
+        cluster-name: '${{ env.clusterName }}'
+
+    - name: Create ingress-demo namespace
+      run: |
+        kubectl create namespace ingress-demo --dry-run -o json | kubectl apply -f -
 
     - name: Create ACR credentials secret
       uses: azure/k8s-create-secret@v1
@@ -68,15 +71,17 @@ jobs:
         secret-name: ingress-demo-secret
         namespace: ingress-demo
         arguments: --force true
-        
-    # - name: Deploy to AKS
-    #   uses: azure/k8s-deploy@v1
-    #   with:
-    #     manifests: |
-    #       web.deployment.yml
-    #       web.service.yml
-    #     images: |
-    #       ${{ env.containerRegistry }}.azurecr.io/${{ env.imageRepository }}:${{ env.tag }}
-    #     imagepullsecrets: |
-    #       ingress-demo-secret
-    #     namespace: ingress-demo
+
+# This task will be important in Task 3 of Exercise 4
+#   - name: Deploy to AKS
+#     uses: azure/k8s-deploy@v1
+#     with:
+#       manifests: |
+#         api.deployment.yml
+#         web.deployment.yml
+#         web.service.yml
+#       images: |
+#         ${{ env.containerRegistry }}/${{ env.imageRepository }}:${{ env.tag }}
+#       imagepullsecrets: |
+#         ingress-demo-secret
+#       namespace: ingress-demo
